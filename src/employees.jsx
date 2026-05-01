@@ -1,25 +1,3 @@
-
-const initialEmployees = [
-  {
-    id: 1,
-    name: 'Claire Ruffing',
-    ext: '1124',
-    email: 'claire.ruffing@sdsu.edu',
-    title: 'Software Engineer',
-    dateHired: new Date('2020-01-15'),
-    isEmployed: true
-  },
-  {
-    id: 2,
-    name: 'John Doe',
-    ext: '5678',
-    email: 'john.doe@sdsu.edu',
-    title: 'Project Manager',
-    dateHired: new Date('2019-06-01'),
-    isEmployed: true
-  }
-]
-
 class EmployeeFilter extends React.Component {
   render() {
     return (
@@ -30,18 +8,23 @@ class EmployeeFilter extends React.Component {
 
 function EmployeeTable(props) {
   const employeeRows = props.employees.map(employee =>
-    <EmployeeRow key={employee.id} employee={employee} />);
+    <EmployeeRow
+      key={employee._id}
+      employee={employee}
+      deleteEmployee={props.deleteEmployee}
+    />);
+
   return (
     <table className="bordered-table">
       <thead>
         <tr>
-          <th>ID</th>
           <th>Name</th>
           <th>Extension</th>
           <th>Email</th>
           <th>Title</th>
           <th>Date Hired</th>
           <th>Currently Employed?</th>
+          <th></th>
         </tr>
       </thead>
       <tbody>
@@ -53,15 +36,20 @@ function EmployeeTable(props) {
 
 function EmployeeRow(props) {
   const employee = props.employee;
+  function onDeleteClick() {
+    alert(`Delete employee with ID ${employee._id}`);
+    props.deleteEmployee(props.employee._id);
+  }
   return (
     <tr>
-      <td>{employee.id}</td>
-      <td>{employee.name}</td>
-      <td>{employee.ext}</td>
-      <td>{employee.email}</td>
-      <td>{employee.title}</td>
-      <td>{employee.dateHired.toLocaleDateString()}</td>
-      <td>{employee.isEmployed ? 'Yes' : 'No'}</td>
+      <td>{props.employee._id}</td>
+      <td>{props.employee.name}</td>
+      <td>{props.employee.extension}</td>
+      <td>{props.employee.email}</td>
+      <td>{props.employee.title}</td>
+      <td>{props.employee.dateHired.toLocaleDateString()}</td>
+      <td>{props.employee.currentlyEmployed ? 'Yes' : 'No'}</td>
+      <td><button onClick={onDeleteClick}>DELETE</button></td>
     </tr>
   );
 }
@@ -76,15 +64,13 @@ class EmployeeAdd extends React.Component {
     const form = document.forms.employeeAdd;
     const employee = {
       name: form.name.value,
-      ext: form.ext.value,
+      extension: form.extension.value,
       email: form.email.value,
       title: form.title.value,
-      dateHired: new Date(),
-      isEmployed: true
     }
     this.props.createEmployee(employee);
     form.name.value = "";
-    form.ext.value = "";
+    form.extension.value = "";
     form.email.value = "";
     form.title.value = "";
   }
@@ -92,7 +78,7 @@ class EmployeeAdd extends React.Component {
     return (
       <form name="employeeAdd" onSubmit={e => this.handleSubmit(e)}>
         Name: <input type="text" name="name" />
-        Extension: <input type="text" name="ext" />
+        Extension: <input type="text" name="extension" maxLength={4} />
         Email: <input type="text" name="email" />
         Title: <input type="text" name="title" />
         <button type="submit">Add Employee</button>
@@ -106,31 +92,68 @@ class EmployeeList extends React.Component {
     super();
     this.state = { employees: [] };
     this.createEmployee = this.createEmployee.bind(this);
+    this.deleteEmployee = this.deleteEmployee.bind(this);
   }
   componentDidMount() {
     this.loadData();
   }
+
   loadData() {
-    setTimeout(() => {
-      this.setState({ employees: initialEmployees });
-    }, 500);
+    fetch('/api/employees').
+      then(response => response.json()).
+      then(data => {
+        console.log("Total count of employees:", data.count);
+        data.employees.forEach(employee => {
+          employee.dateHired = new Date(employee.dateHired);
+        });
+        this.setState({ employees: data.employees });
+      })
+      .catch(err => {
+        console.log("Error fetching data from server:", err);
+      });
   }
+
   createEmployee(employee) {
-    employee.id = this.state.employees.length + 1;
-    // newEmployeeList represents our state which holds the list of employees. 
-    // We create a copy of the current state using slice() and then add the new employee to it. 
-    const newEmployeeList = this.state.employees.slice();
-    newEmployeeList.push(employee);
-    // Finally, we update the state with the new list of employees.
-    this.setState({ employees: newEmployeeList });
+    fetch('/api/employees', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(employee)
+    })
+      .then(response => response.json())
+      .then(newEmployee => {
+        newEmployee.employee.dateHired = new Date(newEmployee.employee.dateHired);
+        const newEmployees = this.state.employees.concat(newEmployee.employee);
+        this.setState({ employees: newEmployees });
+        console.log("Total count of employees:", newEmployees.length);
+      })
+      .catch(err => {
+        console.log("Error creating employee:", err);
+      });
   }
+
+  deleteEmployee(id) {
+    fetch(`/api/employees/${id}`, {
+      method: 'DELETE'
+    })
+      .then(response => {
+        if (!response.ok) {
+          throw new Error(`Failed to delete employee with ID ${id}`);
+        }
+        else {
+          this.loadData();
+        }
+      })
+  }
+
   render() {
     return (
       <React.Fragment>
         <h1>Employee Management Application</h1>
         <EmployeeFilter />
         <hr />
-        <EmployeeTable employees={this.state.employees} />
+        <EmployeeTable employees={this.state.employees} deleteEmployee={this.deleteEmployee} />
         <hr />
         <EmployeeAdd createEmployee={this.createEmployee} />
       </React.Fragment>

@@ -1,3 +1,5 @@
+import Employee from '../models/Employee.js';
+
 // Retrieve all employees from the database
 // Returns: Array of all employees with a count
 const getAllEmployees = async (req, res) => {
@@ -7,7 +9,7 @@ const getAllEmployees = async (req, res) => {
         res.status(200).json({ employees, count: employees.length });
     }
     catch(error) {
-        res.status(500).json({ message: error });
+        res.status(500).json({ message: error.message });
     }
 }
 

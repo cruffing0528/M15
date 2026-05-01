@@ -6,7 +6,15 @@ import bodyParser from 'body-parser';
 
 const app = express()
 
+app.use((req, res, next) => {
+    if (req.path.startsWith('/api/')) {
+        res.set('Cache-Control', 'no-cache, no-store, must-revalidate');
+    }
+    next();
+});
+
 app.use(express.static('public'));
+app.use(bodyParser.urlencoded({ extended: false }));
 app.use(bodyParser.json());
 // Loads index.html from the public folder when the root URL is accessed
 app.use('/', routes)
